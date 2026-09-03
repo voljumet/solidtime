@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 import MultiselectDropdown from '@/packages/ui/src/Input/MultiselectDropdown.vue';
 import Checkbox from '@/packages/ui/src/Input/Checkbox.vue';
 import type { Client } from '@/packages/api/src';
@@ -7,7 +7,7 @@ import { useClientsQuery } from '@/utils/useClientsQuery';
 
 const { clients: allClients } = useClientsQuery();
 
-const showArchived = ref(false);
+const showArchived = defineModel<boolean>('showArchived', { default: false });
 
 const clients = computed(() =>
     showArchived.value ? allClients.value : allClients.value.filter((client) => !client.is_archived)

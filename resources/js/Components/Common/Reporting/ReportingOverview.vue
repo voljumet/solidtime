@@ -53,6 +53,8 @@ import { useNotificationsStore } from '@/utils/notification';
 import type { ExportFormat } from '@/types/reporting';
 import { getRandomColorWithSeed } from '@/packages/ui/src/utils/color';
 import { useProjectsQuery } from '@/utils/useProjectsQuery';
+import { useClientsQuery } from '@/utils/useClientsQuery';
+import { useMembersQuery } from '@/utils/useMembersQuery';
 import { useAggregatedTimeEntriesQuery } from '@/utils/useAggregatedTimeEntriesQuery';
 import type { TagMatchType } from '@/types/reporting';
 
@@ -74,6 +76,9 @@ const selectedMembers = useSessionStorage<string[]>('reporting-selected-members'
 const selectedTasks = useSessionStorage<string[]>('reporting-selected-tasks', []);
 const selectedClients = useSessionStorage<string[]>('reporting-selected-clients', []);
 const tagMatchType = useSessionStorage<TagMatchType>('reporting-tag-match-type', 'contains');
+const showArchivedProjects = useSessionStorage<boolean>('reporting-show-archived-projects', false);
+const showArchivedClients = useSessionStorage<boolean>('reporting-show-archived-clients', false);
+const showInactiveMembers = useSessionStorage<boolean>('reporting-show-inactive-members', false);
 
 const billable = useSessionStorage<'true' | 'false' | null>('reporting-billable', null);
 const entryType = useSessionStorage<'work' | 'break' | null>('reporting-entry-type', 'work');
@@ -121,14 +126,44 @@ function getOptimalGroupingOption(start: string, end: string): 'day' | 'week' | 
     }
 }
 
+const { projects } = useProjectsQuery();
+const { clients } = useClientsQuery();
+const { members } = useMembersQuery();
+
+// ponytail: no explicit selection + archived/inactive toggle off -> fall back to the active-only id list, filtering client-side on data already fetched
+const activeProjectIds = computed(() =>
+    projects.value.filter((project) => !project.is_archived).map((project) => project.id)
+);
+const activeClientIds = computed(() =>
+    clients.value.filter((client) => !client.is_archived).map((client) => client.id)
+);
+const activeMemberIds = computed(() =>
+    members.value.filter((member) => !member.is_placeholder).map((member) => member.id)
+);
+
 const filterParams = computed<AggregatedTimeEntriesQueryParams>(() => {
     return {
         start: getLocalizedDayJs(startDate.value).startOf('day').utc().format(),
         end: getLocalizedDayJs(endDate.value).endOf('day').utc().format(),
-        member_ids: selectedMembers.value.length > 0 ? selectedMembers.value : undefined,
-        project_ids: selectedProjects.value.length > 0 ? selectedProjects.value : undefined,
+        member_ids:
+            selectedMembers.value.length > 0
+                ? selectedMembers.value
+                : showInactiveMembers.value
+                  ? undefined
+                  : activeMemberIds.value,
+        project_ids:
+            selectedProjects.value.length > 0
+                ? selectedProjects.value
+                : showArchivedProjects.value
+                  ? undefined
+                  : activeProjectIds.value,
         task_ids: selectedTasks.value.length > 0 ? selectedTasks.value : undefined,
-        client_ids: selectedClients.value.length > 0 ? selectedClients.value : undefined,
+        client_ids:
+            selectedClients.value.length > 0
+                ? selectedClients.value
+                : showArchivedClients.value
+                  ? undefined
+                  : activeClientIds.value,
         tag_ids: selectedTags.value.length > 0 ? selectedTags.value : undefined,
         tag_match_type: selectedTags.value.length > 0 ? tagMatchType.value : undefined,
         billable: billable.value !== null ? billable.value : undefined,
@@ -202,7 +237,9 @@ async function downloadExport(format: ExportFormat) {
                         history_group: getOptimalGroupingOption(startDate.value, endDate.value),
                         show_history_chart:
                             format === 'pdf'
-                                ? (includeHistoryChartInPdf.value ? 'true' : 'false')
+                                ? includeHistoryChartInPdf.value
+                                    ? 'true'
+                                    : 'false'
                                 : undefined,
                         format: format,
                     },
@@ -218,7 +255,6 @@ async function downloadExport(format: ExportFormat) {
     }
 }
 
-const { projects } = useProjectsQuery();
 const includeHistoryChartInPdf = ref(true);
 const showExportModal = ref(false);
 const exportUrl = ref<string | null>(null);
@@ -403,6 +439,9 @@ const { locked: billableRatesLocked } = useBillableRatesLock();
         v-model:selected-clients="selectedClients"
         v-model:selected-tags="selectedTags"
         v-model:tag-match-type="tagMatchType"
+        v-model:show-archived-projects="showArchivedProjects"
+        v-model:show-archived-clients="showArchivedClients"
+        v-model:show-inactive-members="showInactiveMembers"
         v-model:billable="billable"
         v-model:entry-type="entryType"
         v-model:rounding-enabled="roundingEnabled"

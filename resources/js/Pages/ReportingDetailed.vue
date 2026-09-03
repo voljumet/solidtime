@@ -78,10 +78,24 @@ const entryType = useSessionStorage<'work' | 'break' | null>('reporting-entry-ty
 const roundingEnabled = useSessionStorage<boolean>('reporting-rounding-enabled', false);
 const roundingType = useSessionStorage<TimeEntryRoundingType>('reporting-rounding-type', 'nearest');
 const roundingMinutes = useSessionStorage<number>('reporting-rounding-minutes', 15);
+const showArchivedProjects = useSessionStorage<boolean>('reporting-show-archived-projects', false);
+const showArchivedClients = useSessionStorage<boolean>('reporting-show-archived-clients', false);
+const showInactiveMembers = useSessionStorage<boolean>('reporting-show-inactive-members', false);
 
 const { members } = useMembersQuery();
 const { organization } = useOrganizationQuery(getCurrentOrganizationId()!);
 const pageLimit = 15;
+
+// ponytail: no explicit selection + archived/inactive toggle off -> fall back to the active-only id list, filtering client-side on data already fetched
+const activeProjectIds = computed(() =>
+    projects.value.filter((project) => !project.is_archived).map((project) => project.id)
+);
+const activeClientIds = computed(() =>
+    clients.value.filter((client) => !client.is_archived).map((client) => client.id)
+);
+const activeMemberIds = computed(() =>
+    members.value.filter((member) => !member.is_placeholder).map((member) => member.id)
+);
 
 // Watch rounding enabled state to trigger updates
 watch(roundingEnabled, () => {
@@ -100,10 +114,25 @@ function getFilterAttributes() {
     const params = {
         ...defaultParams,
         member_id: !canViewAllTimeEntries() ? getCurrentMembershipId() : undefined,
-        member_ids: selectedMembers.value.length > 0 ? selectedMembers.value : undefined,
-        project_ids: selectedProjects.value.length > 0 ? selectedProjects.value : undefined,
+        member_ids:
+            selectedMembers.value.length > 0
+                ? selectedMembers.value
+                : showInactiveMembers.value
+                  ? undefined
+                  : activeMemberIds.value,
+        project_ids:
+            selectedProjects.value.length > 0
+                ? selectedProjects.value
+                : showArchivedProjects.value
+                  ? undefined
+                  : activeProjectIds.value,
         task_ids: selectedTasks.value.length > 0 ? selectedTasks.value : undefined,
-        client_ids: selectedClients.value.length > 0 ? selectedClients.value : undefined,
+        client_ids:
+            selectedClients.value.length > 0
+                ? selectedClients.value
+                : showArchivedClients.value
+                  ? undefined
+                  : activeClientIds.value,
         tag_ids: selectedTags.value.length > 0 ? selectedTags.value : undefined,
         tag_match_type: selectedTags.value.length > 0 ? tagMatchType.value : undefined,
         billable: billable.value !== null ? billable.value : undefined,
@@ -328,6 +357,9 @@ async function downloadExport(format: ExportFormat) {
             v-model:selected-clients="selectedClients"
             v-model:selected-tags="selectedTags"
             v-model:tag-match-type="tagMatchType"
+            v-model:show-archived-projects="showArchivedProjects"
+            v-model:show-archived-clients="showArchivedClients"
+            v-model:show-inactive-members="showInactiveMembers"
             v-model:billable="billable"
             v-model:entry-type="entryType"
             v-model:rounding-enabled="roundingEnabled"

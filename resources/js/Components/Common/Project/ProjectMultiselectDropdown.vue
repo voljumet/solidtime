@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 import MultiselectDropdown from '@/packages/ui/src/Input/MultiselectDropdown.vue';
 import Checkbox from '@/packages/ui/src/Input/Checkbox.vue';
 import { useProjectsQuery } from '@/utils/useProjectsQuery';
@@ -12,7 +12,7 @@ const props = defineProps<{
 
 const { projects: allProjects } = useProjectsQuery();
 
-const showArchived = ref(false);
+const showArchived = defineModel<boolean>('showArchived', { default: false });
 
 const projects = computed(() => {
     let items = showArchived.value

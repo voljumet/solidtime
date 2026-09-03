@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 import MultiselectDropdown from '@/packages/ui/src/Input/MultiselectDropdown.vue';
 import Checkbox from '@/packages/ui/src/Input/Checkbox.vue';
 import { useMembersQuery } from '@/utils/useMembersQuery';
@@ -7,7 +7,7 @@ import type { Member } from '@/packages/api/src';
 
 const { members: allMembers } = useMembersQuery();
 
-const showInactive = ref(false);
+const showInactive = defineModel<boolean>('showInactive', { default: false });
 
 const members = computed(() =>
     showInactive.value

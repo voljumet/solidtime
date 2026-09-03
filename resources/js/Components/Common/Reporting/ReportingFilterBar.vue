@@ -30,6 +30,9 @@ const selectedTasks = defineModel<string[]>('selectedTasks', { required: true })
 const selectedClients = defineModel<string[]>('selectedClients', { required: true });
 const selectedTags = defineModel<string[]>('selectedTags', { required: true });
 const tagMatchType = defineModel<TagMatchType>('tagMatchType', { required: true });
+const showArchivedProjects = defineModel<boolean>('showArchivedProjects', { required: true });
+const showArchivedClients = defineModel<boolean>('showArchivedClients', { required: true });
+const showInactiveMembers = defineModel<boolean>('showInactiveMembers', { required: true });
 const billable = defineModel<'true' | 'false' | null>('billable', { required: true });
 const entryType = defineModel<'work' | 'break' | null>('entryType', { required: true });
 const roundingEnabled = defineModel<boolean>('roundingEnabled', { required: true });
@@ -77,7 +80,10 @@ watch(selectedProjects, () => {
         <MainContainer class="sm:flex space-y-4 sm:space-y-0 justify-between">
             <div class="flex flex-wrap items-center space-y-2 sm:space-y-0 space-x-3">
                 <div class="text-sm font-medium">Filters</div>
-                <MemberMultiselectDropdown v-model="selectedMembers" @submit="emit('submit')">
+                <MemberMultiselectDropdown
+                    v-model="selectedMembers"
+                    v-model:show-inactive="showInactiveMembers"
+                    @submit="emit('submit')">
                     <template #trigger>
                         <ReportingFilterBadge
                             :count="selectedMembers.length"
@@ -88,6 +94,7 @@ watch(selectedProjects, () => {
                 </MemberMultiselectDropdown>
                 <ProjectMultiselectDropdown
                     v-model="selectedProjects"
+                    v-model:show-archived="showArchivedProjects"
                     :client-ids="selectedClients"
                     @submit="emit('submit')">
                     <template #trigger>
@@ -111,7 +118,10 @@ watch(selectedProjects, () => {
                             :icon="CheckCircleIcon" />
                     </template>
                 </TaskMultiselectDropdown>
-                <ClientMultiselectDropdown v-model="selectedClients" @submit="emit('submit')">
+                <ClientMultiselectDropdown
+                    v-model="selectedClients"
+                    v-model:show-archived="showArchivedClients"
+                    @submit="emit('submit')">
                     <template #trigger>
                         <ReportingFilterBadge
                             :count="selectedClients.length"
