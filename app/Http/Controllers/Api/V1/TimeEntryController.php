@@ -474,7 +474,8 @@ class TimeEntryController extends Controller
             $roundingType,
             $roundingMinutes
         );
-        $dataHistoryChart = $timeEntryAggregationService->getAggregatedTimeEntries(
+        $showHistoryChart = $request->getShowHistoryChart();
+        $dataHistoryChart = $showHistoryChart ? $timeEntryAggregationService->getAggregatedTimeEntries(
             $timeEntriesAggregateQuery->clone(),
             $request->getHistoryGroup(),
             null,
@@ -486,7 +487,7 @@ class TimeEntryController extends Controller
             $showBillableRate,
             $roundingType,
             $roundingMinutes
-        );
+        ) : null;
         $currency = $organization->currency;
         $timezone = app(TimezoneService::class)->getTimezoneFromUser($this->user());
         $localizationService = LocalizationService::forOrganization($organization);
@@ -521,6 +522,7 @@ class TimeEntryController extends Controller
                 'debug' => $debug,
                 'localization' => $localizationService,
                 'showBillableRate' => $showBillableRate,
+                'showHistoryChart' => $showHistoryChart,
             ]);
             $footerViewFile = file_get_contents(resource_path('views/reports/time-entry-aggregate/pdf-footer.blade.php'));
             if ($footerViewFile === false) {

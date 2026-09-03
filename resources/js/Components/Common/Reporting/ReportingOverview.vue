@@ -27,8 +27,10 @@ import ReportingFilterBar from '@/Components/Common/Reporting/ReportingFilterBar
 import { SecondaryButton } from '@/packages/ui/src';
 import {
     DropdownMenu,
+    DropdownMenuCheckboxItem,
     DropdownMenuContent,
     DropdownMenuItem,
+    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/packages/ui/src';
 import ReportCreateModal from '@/Components/Common/Report/ReportCreateModal.vue';
@@ -198,6 +200,10 @@ async function downloadExport(format: ExportFormat) {
                         group: group.value,
                         sub_group: subGroup.value,
                         history_group: getOptimalGroupingOption(startDate.value, endDate.value),
+                        show_history_chart:
+                            format === 'pdf'
+                                ? (includeHistoryChartInPdf.value ? 'true' : 'false')
+                                : undefined,
                         format: format,
                     },
                 }),
@@ -213,6 +219,7 @@ async function downloadExport(format: ExportFormat) {
 }
 
 const { projects } = useProjectsQuery();
+const includeHistoryChartInPdf = ref(true);
 const showExportModal = ref(false);
 const exportUrl = ref<string | null>(null);
 const showCreateReportModal = ref(false);
@@ -331,6 +338,10 @@ const { locked: billableRatesLocked } = useBillableRatesLock();
                                 class="w-3.5 text-text-tertiary" />
                         </div>
                     </DropdownMenuItem>
+                    <DropdownMenuCheckboxItem v-model:checked="includeHistoryChartInPdf">
+                        Include date chart in PDF
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem @click="triggerExport('xlsx')">
                         Export as Excel
                     </DropdownMenuItem>
@@ -363,6 +374,10 @@ const { locked: billableRatesLocked } = useBillableRatesLock();
                             class="w-3.5 text-text-tertiary" />
                     </div>
                 </DropdownMenuItem>
+                <DropdownMenuCheckboxItem v-model:checked="includeHistoryChartInPdf">
+                    Include date chart in PDF
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem @click="triggerExport('xlsx')">
                     Export as Excel
                 </DropdownMenuItem>

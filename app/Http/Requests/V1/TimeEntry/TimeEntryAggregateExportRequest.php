@@ -195,6 +195,11 @@ class TimeEntryAggregateExportRequest extends BaseFormRequest
                 'string',
                 'in:true,false',
             ],
+            // Whether the date history bar chart should be included in the PDF export (default: true)
+            'show_history_chart' => [
+                'string',
+                'in:true,false',
+            ],
             'debug' => [
                 'string',
                 'in:true,false',
@@ -217,6 +222,11 @@ class TimeEntryAggregateExportRequest extends BaseFormRequest
     public function getDebug(): bool
     {
         return $this->input('debug') === 'true';
+    }
+
+    public function getShowHistoryChart(): bool
+    {
+        return $this->input('show_history_chart', 'true') === 'true';
     }
 
     public function getGroup(): TimeEntryAggregationType
