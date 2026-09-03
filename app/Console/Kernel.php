@@ -22,6 +22,10 @@ class Kernel extends ConsoleKernel
             ->when(fn (): bool => config('scheduling.tasks.auth_send_mails_expiring_api_tokens'))
             ->everyTenMinutes();
 
+        $schedule->command('project:send-estimated-time-reached-mails')
+            ->when(fn (): bool => config('scheduling.tasks.project_send_estimated_time_reached_mails'))
+            ->everyTenMinutes();
+
         if (config('app.key') && (config('scheduling.tasks.self_hosting_check_for_update') || config('scheduling.tasks.self_hosting_telemetry'))) {
             // Convert string to a stable integer for seeding
             /** @var int $seed Take the first 8 hex chars → 32-bit int */
