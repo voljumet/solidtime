@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import MultiselectDropdown from '@/packages/ui/src/Input/MultiselectDropdown.vue';
+import Checkbox from '@/packages/ui/src/Input/Checkbox.vue';
 import { useProjectsQuery } from '@/utils/useProjectsQuery';
 import type { Project } from '@/packages/api/src';
 
@@ -11,11 +12,17 @@ const props = defineProps<{
 
 const { projects: allProjects } = useProjectsQuery();
 
-const projects = computed(() =>
-    props.clientIds?.length
-        ? allProjects.value.filter((project) => props.clientIds!.includes(project.client_id ?? ''))
-        : allProjects.value
-);
+const showArchived = ref(false);
+
+const projects = computed(() => {
+    let items = showArchived.value
+        ? allProjects.value
+        : allProjects.value.filter((project) => !project.is_archived);
+    if (props.clientIds?.length) {
+        items = items.filter((project) => props.clientIds!.includes(project.client_id ?? ''));
+    }
+    return items;
+});
 
 function getKeyFromItem(item: Project) {
     return item.id;
@@ -40,6 +47,13 @@ const emit = defineEmits<{
         @submit="emit('submit')">
         <template #trigger>
             <slot name="trigger"></slot>
+        </template>
+        <template #content-before-list>
+            <label
+                class="mt-2 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-text-secondary hover:bg-card-background-active cursor-pointer">
+                <Checkbox v-model:checked="showArchived" />
+                <span>Show archived</span>
+            </label>
         </template>
     </MultiselectDropdown>
 </template>

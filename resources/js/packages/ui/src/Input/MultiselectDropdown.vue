@@ -118,6 +118,7 @@ const emit = defineEmits(['update:modelValue', 'changed', 'submit']);
                         class="w-full h-8 rounded-md border border-input-border bg-input-background px-3 text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none"
                         :placeholder="searchPlaceholder" />
                 </ComboboxAnchor>
+                <slot name="content-before-list"></slot>
                 <ComboboxContent
                     :dismiss-able="false"
                     position="inline"
