@@ -67,17 +67,17 @@ const endDate = useSessionStorage<string>(
     'reporting-end-date',
     getLocalizedDayJs(getDayJsInstance()().format()).format()
 );
-const selectedTags = ref<string[]>([]);
-const selectedProjects = ref<string[]>([]);
-const selectedMembers = ref<string[]>([]);
-const selectedTasks = ref<string[]>([]);
-const selectedClients = ref<string[]>([]);
-const tagMatchType = ref<TagMatchType>('contains');
-const billable = ref<'true' | 'false' | null>(null);
-const entryType = ref<'work' | 'break' | null>('work');
-const roundingEnabled = ref<boolean>(false);
-const roundingType = ref<TimeEntryRoundingType>('nearest');
-const roundingMinutes = ref<number>(15);
+const selectedTags = useSessionStorage<string[]>('reporting-selected-tags', []);
+const selectedProjects = useSessionStorage<string[]>('reporting-selected-projects', []);
+const selectedMembers = useSessionStorage<string[]>('reporting-selected-members', []);
+const selectedTasks = useSessionStorage<string[]>('reporting-selected-tasks', []);
+const selectedClients = useSessionStorage<string[]>('reporting-selected-clients', []);
+const tagMatchType = useSessionStorage<TagMatchType>('reporting-tag-match-type', 'contains');
+const billable = useSessionStorage<'true' | 'false' | null>('reporting-billable', null);
+const entryType = useSessionStorage<'work' | 'break' | null>('reporting-entry-type', 'work');
+const roundingEnabled = useSessionStorage<boolean>('reporting-rounding-enabled', false);
+const roundingType = useSessionStorage<TimeEntryRoundingType>('reporting-rounding-type', 'nearest');
+const roundingMinutes = useSessionStorage<number>('reporting-rounding-minutes', 15);
 
 const { members } = useMembersQuery();
 const { organization } = useOrganizationQuery(getCurrentOrganizationId()!);
