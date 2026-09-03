@@ -13,6 +13,12 @@ const progressBarPercentage = computed(() => {
 const formattedProgressBarPercentage = computed(() => {
     return progressBarPercentage.value.toFixed(1) + '%';
 });
+const remainingLabel = computed(() => {
+    if (isOverEstimate.value) {
+        return formatHours(props.current - props.estimated) + ' over';
+    }
+    return formatHours(props.estimated - props.current) + ' left';
+});
 </script>
 <template>
     <div class="w-full">
@@ -28,6 +34,8 @@ const formattedProgressBarPercentage = computed(() => {
         <div class="text-xs font-semibold pt-1.5">
             {{ formattedProgressBarPercentage }} of
             {{ formatHours(estimated) }}
+            &middot;
+            {{ remainingLabel }}
         </div>
     </div>
 </template>
