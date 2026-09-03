@@ -338,7 +338,9 @@ const { locked: billableRatesLocked } = useBillableRatesLock();
                                 class="w-3.5 text-text-tertiary" />
                         </div>
                     </DropdownMenuItem>
-                    <DropdownMenuCheckboxItem v-model:checked="includeHistoryChartInPdf">
+                    <DropdownMenuCheckboxItem
+                        :model-value="includeHistoryChartInPdf"
+                        @select.prevent="includeHistoryChartInPdf = !includeHistoryChartInPdf">
                         Include date chart in PDF
                     </DropdownMenuCheckboxItem>
                     <DropdownMenuSeparator />
@@ -374,7 +376,9 @@ const { locked: billableRatesLocked } = useBillableRatesLock();
                             class="w-3.5 text-text-tertiary" />
                     </div>
                 </DropdownMenuItem>
-                <DropdownMenuCheckboxItem v-model:checked="includeHistoryChartInPdf">
+                <DropdownMenuCheckboxItem
+                    :model-value="includeHistoryChartInPdf"
+                    @select.prevent="includeHistoryChartInPdf = !includeHistoryChartInPdf">
                     Include date chart in PDF
                 </DropdownMenuCheckboxItem>
                 <DropdownMenuSeparator />
