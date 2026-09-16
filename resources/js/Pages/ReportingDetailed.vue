@@ -84,6 +84,8 @@ const showInactiveMembers = useSessionStorage<boolean>('reporting-show-inactive-
 
 const { members } = useMembersQuery();
 const { organization } = useOrganizationQuery(getCurrentOrganizationId()!);
+const { projects } = useProjectsQuery();
+const { clients } = useClientsQuery();
 const pageLimit = 15;
 
 // ponytail: no explicit selection + archived/inactive toggle off -> fall back to the active-only id list, filtering client-side on data already fetched
@@ -185,9 +187,7 @@ onMounted(async () => {
     await updateFilteredTimeEntries();
 });
 
-const { projects } = useProjectsQuery();
 const { tasks } = useTasksQuery();
-const { clients } = useClientsQuery();
 
 const selectedTimeEntries = ref<TimeEntry[]>([]);
 

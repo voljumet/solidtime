@@ -170,7 +170,7 @@ async function handleDeleteTimeEntry() {
                                 :fix-in-calendar="fixInCalendar" />
                             <TimeTrackerProjectTaskDropdown
                                 v-if="!isBreak"
-                                class="min-w-0 shrink"
+                                class="shrink-0"
                                 :create-project
                                 :create-client
                                 :can-create-project
