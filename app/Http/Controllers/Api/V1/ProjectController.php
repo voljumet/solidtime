@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1;
 
 use App\Exceptions\Api\EntityStillInUseApiException;
+use App\Exceptions\Api\InactiveUserCanNotBeUsedApiException;
 use App\Http\Requests\V1\Project\ProjectIndexRequest;
 use App\Http\Requests\V1\Project\ProjectStoreRequest;
 use App\Http\Requests\V1\Project\ProjectUpdateRequest;
 use App\Http\Resources\V1\Project\ProjectCollection;
 use App\Http\Resources\V1\Project\ProjectResource;
+use App\Models\Member;
 use App\Models\Organization;
 use App\Models\Project;
 use App\Models\ProjectMember;
@@ -89,28 +91,71 @@ class ProjectController extends Controller
     /**
      * Create project
      *
-     * @throws AuthorizationException
+     * @throws AuthorizationException|InactiveUserCanNotBeUsedApiException
      *
      * @operationId createProject
      */
     public function store(Organization $organization, ProjectStoreRequest $request): JsonResource
     {
         $this->checkPermission($organization, 'projects:create');
-        $canUseBillableRates = $this->canUseBillableRates($organization);
-        $project = new Project;
-        $project->name = $request->input('name');
-        $project->color = $request->input('color');
-        $project->is_billable = $canUseBillableRates && $request->boolean('is_billable');
-        $project->billable_rate = $canUseBillableRates ? $request->getBillableRate() : null;
-        $project->client_id = $request->input('client_id');
-        $project->is_public = $request->getIsPublic();
-        if ($this->canAccessPremiumFeatures($organization) && $request->has('estimated_time')) {
-            $project->estimated_time = $request->getEstimatedTime();
-        }
-        $project->organization()->associate($organization);
-        $project->save();
+
+        $project = DB::transaction(function () use ($organization, $request): Project {
+            $canUseBillableRates = $this->canUseBillableRates($organization);
+            $project = new Project;
+            $project->name = $request->input('name');
+            $project->color = $request->input('color');
+            $project->is_billable = $canUseBillableRates && $request->boolean('is_billable');
+            $project->billable_rate = $canUseBillableRates ? $request->getBillableRate() : null;
+            $project->client_id = $request->input('client_id');
+            $project->is_public = $request->getIsPublic();
+            if ($this->canAccessPremiumFeatures($organization) && $request->has('estimated_time')) {
+                $project->estimated_time = $request->getEstimatedTime();
+            }
+            $project->organization()->associate($organization);
+            $project->save();
+
+            $this->attachMembers($organization, $project, $request->getMemberIds());
+
+            return $project;
+        });
 
         return new ProjectResource($project, true);
+    }
+
+    /**
+     * @param  list<string>  $memberIds
+     *
+     * @throws InactiveUserCanNotBeUsedApiException
+     */
+    private function attachMembers(Organization $organization, Project $project, array $memberIds): void
+    {
+        if ($memberIds === []) {
+            return;
+        }
+
+        $members = Member::query()
+            ->whereBelongsTo($organization, 'organization')
+            ->whereIn('id', $memberIds)
+            ->with('user')
+            ->get()
+            ->keyBy(fn (Member $member): string => (string) $member->getKey());
+
+        foreach ($memberIds as $memberId) {
+            $member = $members->get($memberId);
+            if (! $member instanceof Member) {
+                continue;
+            }
+            if ($member->user->is_placeholder) {
+                throw new InactiveUserCanNotBeUsedApiException;
+            }
+
+            $projectMember = new ProjectMember;
+            $projectMember->billable_rate = null;
+            $projectMember->member()->associate($member);
+            $projectMember->user()->associate($member->user);
+            $projectMember->project()->associate($project);
+            $projectMember->save();
+        }
     }
 
     /**

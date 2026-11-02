@@ -4,6 +4,7 @@ import SecondaryButton from '@/packages/ui/src/Buttons/SecondaryButton.vue';
 import DialogModal from '@/packages/ui/src/DialogModal.vue';
 import { computed, ref } from 'vue';
 import type { CreateClientBody, CreateProjectBody, Project } from '@/packages/api/src';
+import { useMembersQuery } from '@/utils/useMembersQuery';
 import { getRandomColor } from '@/packages/ui/src/utils/color';
 import PrimaryButton from '@/packages/ui/src/Buttons/PrimaryButton.vue';
 import { useFocus } from '@vueuse/core';
@@ -16,9 +17,13 @@ import EstimatedTimeSection from '@/packages/ui/src/EstimatedTimeSection.vue';
 import { Field, FieldGroup, FieldLabel } from '../field';
 import ProjectEditBillableSection from '@/packages/ui/src/Project/ProjectEditBillableSection.vue';
 import ProjectVisibilitySelect from '@/packages/ui/src/Project/ProjectVisibilitySelect.vue';
+import ProjectAccessSelect from '@/packages/ui/src/Project/ProjectAccessSelect.vue';
 import type { Client } from '@/packages/api/src';
 
 const show = defineModel('show', { default: false });
+const { members, isLoading: membersLoading } = useMembersQuery({
+    enabled: () => show.value,
+});
 const saving = ref(false);
 
 const props = defineProps<{
@@ -35,20 +40,15 @@ const activeClients = computed(() => {
     return props.clients.filter((client) => !client.is_archived);
 });
 
-const project = ref<CreateProjectBody>({
-    name: props.initialProjectName ?? '',
-    color: getRandomColor(),
-    client_id: null,
-    billable_rate: null,
-    is_billable: false,
-    estimated_time: null,
-    is_public: false,
+const selectableMembers = computed(() => {
+    return members.value
+        .filter((member) => member.is_placeholder === false)
+        .map((member) => ({ id: member.id, name: member.name }))
+        .sort((a, b) => a.name.localeCompare(b.name));
 });
 
-async function submit() {
-    await props.createProject(project.value);
-    show.value = false;
-    project.value = {
+function emptyProject(): CreateProjectBody {
+    return {
         name: '',
         color: getRandomColor(),
         client_id: null,
@@ -56,6 +56,27 @@ async function submit() {
         is_billable: false,
         estimated_time: null,
         is_public: false,
+        member_ids: [],
+    };
+}
+
+const project = ref<CreateProjectBody>({
+    ...emptyProject(),
+    name: props.initialProjectName ?? '',
+});
+
+const selectedMemberIds = computed({
+    get: () => project.value.member_ids ?? [],
+    set: (memberIds: string[]) => {
+        project.value.member_ids = memberIds;
+    },
+});
+
+async function submit() {
+    await props.createProject(project.value);
+    show.value = false;
+    project.value = {
+        ...emptyProject(),
     };
 }
 
@@ -127,6 +148,11 @@ const currentClientName = computed(() => {
                     v-model="project.estimated_time"
                     @submit="submit()"></EstimatedTimeSection>
                 <ProjectVisibilitySelect v-model="project.is_public"></ProjectVisibilitySelect>
+                <ProjectAccessSelect
+                    v-model="selectedMemberIds"
+                    :members="selectableMembers"
+                    :loading="membersLoading"
+                    :is-public="project.is_public ?? false"></ProjectAccessSelect>
             </FieldGroup>
         </template>
         <template #footer>

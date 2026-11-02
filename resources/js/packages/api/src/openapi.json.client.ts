@@ -384,6 +384,7 @@ const ProjectStoreRequest = z
         client_id: z.union([z.string(), z.null()]).optional(),
         estimated_time: z.union([z.number(), z.null()]).optional(),
         is_public: z.boolean().optional(),
+        member_ids: z.array(z.string()).optional(),
     })
     .passthrough();
 const ProjectUpdateRequest = z

@@ -7,11 +7,13 @@ namespace Tests\Unit\Endpoint\Api\V1;
 use App\Enums\Role;
 use App\Http\Controllers\Api\V1\ProjectController;
 use App\Models\Client;
+use App\Models\Member;
 use App\Models\Organization;
 use App\Models\Project;
 use App\Models\ProjectMember;
 use App\Models\Task;
 use App\Models\TimeEntry;
+use App\Models\User;
 use App\Service\BillableRateService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -868,6 +870,188 @@ class ProjectEndpointTest extends ApiEndpointTestAbstract
         // Assert
         $response->assertStatus(422);
         $response->assertJsonValidationErrors(['is_public']);
+    }
+
+    public function test_store_endpoint_adds_selected_members_to_the_project(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission([
+            'projects:create',
+        ]);
+        $projectFake = Project::factory()->forOrganization($data->organization)->make();
+        $otherUser = User::factory()->create();
+        $otherMember = Member::factory()->forOrganization($data->organization)->forUser($otherUser)->create();
+        $this->assertBillableRateServiceIsUnused();
+        Passport::actingAs($data->user);
+
+        // Act
+        $response = $this->postJson(route('api.v1.projects.store', [$data->organization->getKey()]), [
+            'name' => $projectFake->name,
+            'color' => $projectFake->color,
+            'client_id' => null,
+            'is_billable' => $projectFake->is_billable,
+            'member_ids' => [
+                $data->member->getKey(),
+                $otherMember->getKey(),
+            ],
+        ]);
+
+        // Assert
+        $response->assertStatus(201);
+        $projectId = $response->json('data.id');
+        $this->assertDatabaseHas(ProjectMember::class, [
+            'project_id' => $projectId,
+            'member_id' => $data->member->getKey(),
+            'user_id' => $data->member->user_id,
+            'billable_rate' => null,
+        ]);
+        $this->assertDatabaseHas(ProjectMember::class, [
+            'project_id' => $projectId,
+            'member_id' => $otherMember->getKey(),
+            'user_id' => $otherMember->user_id,
+            'billable_rate' => null,
+        ]);
+    }
+
+    public function test_store_endpoint_creates_project_without_members_when_member_ids_is_empty(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission([
+            'projects:create',
+        ]);
+        $projectFake = Project::factory()->forOrganization($data->organization)->make();
+        Passport::actingAs($data->user);
+
+        // Act
+        $response = $this->postJson(route('api.v1.projects.store', [$data->organization->getKey()]), [
+            'name' => $projectFake->name,
+            'color' => $projectFake->color,
+            'client_id' => null,
+            'is_billable' => $projectFake->is_billable,
+            'member_ids' => [],
+        ]);
+
+        // Assert
+        $response->assertStatus(201);
+        $this->assertSame(0, ProjectMember::query()->where('project_id', $response->json('data.id'))->count());
+    }
+
+    public function test_store_endpoint_fails_if_member_ids_contains_a_member_from_another_organization(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission([
+            'projects:create',
+        ]);
+        $otherData = $this->createUserWithPermission([
+            'projects:create',
+        ]);
+        $projectFake = Project::factory()->forOrganization($data->organization)->make();
+        Passport::actingAs($data->user);
+
+        // Act
+        $response = $this->postJson(route('api.v1.projects.store', [$data->organization->getKey()]), [
+            'name' => $projectFake->name,
+            'color' => $projectFake->color,
+            'client_id' => null,
+            'is_billable' => $projectFake->is_billable,
+            'member_ids' => [$otherData->member->getKey()],
+        ]);
+
+        // Assert
+        $response->assertInvalid(['member_ids.0']);
+        $this->assertDatabaseMissing(Project::class, [
+            'name' => $projectFake->name,
+            'organization_id' => $data->organization->getKey(),
+        ]);
+    }
+
+    public function test_store_endpoint_fails_if_member_ids_is_not_an_array(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission([
+            'projects:create',
+        ]);
+        $projectFake = Project::factory()->forOrganization($data->organization)->make();
+        Passport::actingAs($data->user);
+
+        // Act
+        $response = $this->postJson(route('api.v1.projects.store', [$data->organization->getKey()]), [
+            'name' => $projectFake->name,
+            'color' => $projectFake->color,
+            'client_id' => null,
+            'is_billable' => $projectFake->is_billable,
+            'member_ids' => $data->member->getKey(),
+        ]);
+
+        // Assert
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['member_ids']);
+    }
+
+    public function test_store_endpoint_fails_if_member_ids_contains_duplicates(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission([
+            'projects:create',
+        ]);
+        $projectFake = Project::factory()->forOrganization($data->organization)->make();
+        Passport::actingAs($data->user);
+
+        // Act
+        $response = $this->postJson(route('api.v1.projects.store', [$data->organization->getKey()]), [
+            'name' => $projectFake->name,
+            'color' => $projectFake->color,
+            'client_id' => null,
+            'is_billable' => $projectFake->is_billable,
+            'member_ids' => [
+                $data->member->getKey(),
+                $data->member->getKey(),
+            ],
+        ]);
+
+        // Assert
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['member_ids.1']);
+        $this->assertDatabaseMissing(Project::class, [
+            'name' => $projectFake->name,
+            'organization_id' => $data->organization->getKey(),
+        ]);
+    }
+
+    public function test_store_endpoint_fails_if_a_selected_member_is_a_placeholder(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission([
+            'projects:create',
+        ]);
+        $projectFake = Project::factory()->forOrganization($data->organization)->make();
+        $placeholderUser = User::factory()->placeholder()->create();
+        $placeholderMember = Member::factory()->forOrganization($data->organization)->forUser($placeholderUser)->create();
+        Passport::actingAs($data->user);
+
+        // Act
+        $response = $this->postJson(route('api.v1.projects.store', [$data->organization->getKey()]), [
+            'name' => $projectFake->name,
+            'color' => $projectFake->color,
+            'client_id' => null,
+            'is_billable' => $projectFake->is_billable,
+            'member_ids' => [$placeholderMember->getKey()],
+        ]);
+
+        // Assert
+        $response->assertStatus(400);
+        $response->assertExactJson([
+            'error' => true,
+            'key' => 'inactive_user_can_not_be_used',
+            'message' => 'Inactive user can not be used',
+        ]);
+        $this->assertDatabaseMissing(Project::class, [
+            'name' => $projectFake->name,
+            'organization_id' => $data->organization->getKey(),
+        ]);
+        $this->assertDatabaseMissing(ProjectMember::class, [
+            'member_id' => $placeholderMember->getKey(),
+        ]);
     }
 
     public function test_update_endpoint_fails_if_user_is_not_part_of_project_organization(): void

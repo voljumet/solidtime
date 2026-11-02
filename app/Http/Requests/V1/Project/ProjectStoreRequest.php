@@ -6,6 +6,7 @@ namespace App\Http\Requests\V1\Project;
 
 use App\Http\Requests\V1\BaseFormRequest;
 use App\Models\Client;
+use App\Models\Member;
 use App\Models\Organization;
 use App\Models\Project;
 use App\Rules\ColorRule;
@@ -82,7 +83,30 @@ class ProjectStoreRequest extends BaseFormRequest
             'is_public' => [
                 'boolean',
             ],
+            // Organization member IDs that should have access to the project
+            'member_ids' => [
+                'array',
+            ],
+            'member_ids.*' => [
+                'string',
+                'distinct',
+                ExistsEloquent::make(Member::class, null, function (Builder $builder): Builder {
+                    /** @var Builder<Member> $builder */
+                    return $builder->whereBelongsTo($this->organization, 'organization');
+                })->uuid(),
+            ],
         ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getMemberIds(): array
+    {
+        /** @var array<int, mixed> $input */
+        $input = $this->input('member_ids', []);
+
+        return array_values(array_filter($input, static fn (mixed $memberId): bool => is_string($memberId)));
     }
 
     public function getIsPublic(): bool
